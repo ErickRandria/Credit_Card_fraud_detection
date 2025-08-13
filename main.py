@@ -1,16 +1,25 @@
-from fastapi import FastAPI
+# app.py
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import uvicorn
 import numpy as np
 import joblib
 
+# Load the trained model
+MODEL_PATH = "credit_card_fraud_model.pkl"
+try:
+    model = joblib.load(MODEL_PATH)
+except Exception as e:
+    raise RuntimeError(f"Failed to load model from {MODEL_PATH}: {e}")
 
-# Load the model
-model = joblib.load('credit_card_fraud_model.pkl')
-
-app = FastAPI(title ="Credit Card Fraud Detection API")
+app = FastAPI(
+    title="Credit Card Fraud Detection API",
+    description="API that predicts whether a credit card transaction is fraudulent",
+    version="1.0",
+)
 
 class Transaction(BaseModel):
+    # Adjust fields based on your input features
+    Time: float
     V1: float
     V2: float
     V3: float
@@ -42,17 +51,27 @@ class Transaction(BaseModel):
     Amount: float
 
 @app.post("/predict")
-def predict_fraud(transaction: Transaction):
-    data = np.array([[
-        transaction.V1, transaction.V2, transaction.V3, transaction.V4,
-        transaction.V5, transaction.V6, transaction.V7, transaction.V8,
-        transaction.V9, transaction.V10, transaction.V11, transaction.V12,
-        transaction.V13, transaction.V14, transaction.V15, transaction.V16,
-        transaction.V17, transaction.V18, transaction.V19, transaction.V20,
-        transaction.V21, transaction.V22, transaction.V23, transaction.V24,
-        transaction.V25, transaction.V26, transaction.V27, transaction.V28,
-        transaction.Amount
+async def predict(transaction: Transaction):
+    features = np.array([[
+        transaction.Time, transaction.V1, transaction.V2, transaction.V3, transaction.V4,
+        transaction.V5, transaction.V6, transaction.V7, transaction.V8, transaction.V9,
+        transaction.V10, transaction.V11, transaction.V12, transaction.V13, transaction.V14,
+        transaction.V15, transaction.V16, transaction.V17, transaction.V18, transaction.V19,
+        transaction.V20, transaction.V21, transaction.V22, transaction.V23, transaction.V24,
+        transaction.V25, transaction.V26, transaction.V27, transaction.V28, transaction.Amount
     ]])
-    
-    prediction = model.predict(data)
-    return {"fraud": bool(prediction[0])}
+
+    try:
+        prediction = model.predict(features)[0]
+        prob = model.predict_proba(features)[0][1]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
+
+    return {
+        "is_fraud": bool(prediction),
+        "fraud_probability": float(prob),
+    }
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the Credit Card Fraud Detection API."}
