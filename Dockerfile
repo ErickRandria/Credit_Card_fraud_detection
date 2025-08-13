@@ -1,4 +1,4 @@
-from python:3.9.7
+FROM python:3.9.7
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
-COPY model.pkl .
+COPY credit_card_fraud_model.pkl .
 COPY main.py .
 
 # Expose the port the app runs on
